@@ -22,15 +22,7 @@ const (
 
 type Config struct {
 	Environment Environment `env:"ENV,required,notEmpty"`
-	Postgres    PostgresConfig
-}
-
-type PostgresConfig struct {
-	Host     string `env:"POSTGRES_HOST,required,notEmpty"`
-	Port     uint16 `env:"POSTGRES_PORT" envDefault:"5432"`
-	User     string `env:"POSTGRES_USER,required,notEmpty"`
-	Password string `env:"POSTGRES_PASS,required,notEmpty"`
-	Database string `env:"POSTGRES_DATABASE,required,notEmpty"`
+	DatabaseURL string      `env:"DATABASE_URL,required,notEmpty"`
 }
 
 func Load() (Config, error) {
@@ -118,20 +110,8 @@ func (c Config) validate() error {
 		)
 	}
 
-	if strings.TrimSpace(c.Postgres.Host) == "" {
-		validationErrors = append(validationErrors, errors.New("POSTGRES_HOST must not be blank"))
-	}
-	if c.Postgres.Port == 0 {
-		validationErrors = append(validationErrors, errors.New("POSTGRES_PORT must be between 1 and 65535"))
-	}
-	if strings.TrimSpace(c.Postgres.User) == "" {
-		validationErrors = append(validationErrors, errors.New("POSTGRES_USER must not be blank"))
-	}
-	if c.Postgres.Password == "" {
-		validationErrors = append(validationErrors, errors.New("POSTGRES_PASS must not be empty"))
-	}
-	if strings.TrimSpace(c.Postgres.Database) == "" {
-		validationErrors = append(validationErrors, errors.New("POSTGRES_DATABASE must not be blank"))
+	if strings.TrimSpace(c.DatabaseURL) == "" {
+		validationErrors = append(validationErrors, errors.New("DatabaseURL must not be blank"))
 	}
 
 	return errors.Join(validationErrors...)
