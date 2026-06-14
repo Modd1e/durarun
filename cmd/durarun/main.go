@@ -2,50 +2,64 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/Modd1e/durarun/internal/config"
 	"github.com/Modd1e/durarun/internal/logger"
 	"github.com/Modd1e/durarun/internal/postgres"
 	"github.com/Modd1e/durarun/internal/postgres/dbgen"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
+	log, cfg, err := run()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	ctx := context.Background()
+
+	pool, _, err := initDB(ctx, cfg)
+	if err != nil {
+		log.Error("init db", "error", err)
+		return
+	}
+
+	log.Info("application started")
+	// code here
+
+	defer pool.Close()
+}
+
+func run() (*slog.Logger, *config.Config, error) {
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, nil, fmt.Errorf("load config: %w", err)
+	}
+
 	log := logger.New(logger.Config{
-		Env:       "dev",
+		Env:       string(cfg.Environment),
 		Level:     "debug",
 		AddSource: false,
 	})
 
 	slog.SetDefault(log)
 
-	config, err := config.Load()
-	if err != nil {
-		log.Error("load config: %v", err)
-	}
+	return log, &cfg, nil
+}
 
-	ctx := context.Background()
-
-	pool, err := postgres.NewPool(ctx, config.DatabaseURL)
+func initDB(
+	ctx context.Context,
+	cfg *config.Config,
+) (*pgxpool.Pool, *dbgen.Queries, error) {
+	pool, err := postgres.NewPool(ctx, cfg.DatabaseURL)
 	if err != nil {
-		log.Error(err.Error())
+		return nil, nil, fmt.Errorf("create postgres pool: %w", err)
 	}
-	defer pool.Close()
 
 	queries := dbgen.New(pool)
 
-	payload := `{"task":"example"}`
-	queue := int32(1)
-
-	job, err := queries.CreateJob(ctx, dbgen.CreateJobParams{
-		Queue:   &queue,
-		Payload: &payload,
-	})
-	if err != nil {
-		log.Error("create job: %w", err.Error())
-	}
-
-	slog.Info("job created", "job_id", job.ID)
-
-	log.Info("Hello world")
+	return pool, queries, nil
 }
