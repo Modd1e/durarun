@@ -6,12 +6,11 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/Modd1e/durarun/internal/api"
 	"github.com/Modd1e/durarun/internal/config"
 	"github.com/Modd1e/durarun/internal/logger"
 	"github.com/Modd1e/durarun/internal/postgres"
 	"github.com/Modd1e/durarun/internal/postgres/dbgen"
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 )
 
 func main() {
@@ -42,40 +41,20 @@ func main() {
 
 	queries := dbgen.New(pool)
 
-	r := chi.NewRouter()
+	// Initialize API
+	serverAPI := api.New(queries, log)
 
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
+	server := &http.Server{
+		Addr:    ":3000",
+		Handler: serverAPI.Handler(),
+	}
 
-	r.Get("/jobs/count/", JobsCountHandler(queries, ctx))
-	r.Post("/jobs/create/", CreateJobHandler(queries, ctx))
+	log.Info("application started", "address", server.Addr)
 
-	log.Info("application started")
-	http.ListenAndServe(":3000", r)
+	if err := server.ListenAndServe(); err != nil &&
+		err != http.ErrServerClosed {
+		log.Error("HTTP server stopped", "error", err)
+	}
 
 	defer pool.Close()
-}
-
-func CreateJobHandler(queries *dbgen.Queries, ctx context.Context) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var payload dbgen.CreateJobParams
-		if err := r.ParseForm(); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		defer r.Body.Close()
-
-		if err := r.ParseForm(); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		queries.CreateJob(ctx, payload)
-	}
-}
-
-func JobsCountHandler(queries *dbgen.Queries, ctx context.Context) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		count, _ := queries.CountJobs(ctx)
-		w.Write([]byte(fmt.Sprintf("%d", count)))
-	}
 }
