@@ -9,6 +9,17 @@ import (
 	"context"
 )
 
+const countJobs = `-- name: CountJobs :one
+SELECT COUNT(*) FROM jobs
+`
+
+func (q *Queries) CountJobs(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countJobs)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createJob = `-- name: CreateJob :one
 INSERT INTO jobs (queue, payload, status)
 VALUES ($1, $2, 'available')

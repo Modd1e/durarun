@@ -9,6 +9,7 @@ import (
 )
 
 type Querier interface {
+	CountJobs(ctx context.Context) (int64, error)
 	CreateJob(ctx context.Context, arg CreateJobParams) (Job, error)
 }
 

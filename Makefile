@@ -6,3 +6,6 @@ local:
 
 atlas-apply:
 	set -a; . ./.env; set +a; atlas migrate apply --env local
+
+sqlc-generate:
+	go tool sqlc generate
